@@ -1,6 +1,6 @@
 {
   "name": "traverse-workspace",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "Build a recursive tree of packages from package.json workspace declarations",
   "funding": "https://github.com/sponsors/Jaid",
