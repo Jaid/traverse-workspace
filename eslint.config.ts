@@ -1,3 +1,5 @@
 import {makeEslintConfig} from 'eslint-config-jaid'
 
-export default makeEslintConfig()
+const config: ReturnType<typeof makeEslintConfig> = makeEslintConfig()
+
+export default config
