@@ -1,8 +1,8 @@
 import type {Package, Packages} from '../../types.ts'
 
-import {basename, dirname, join, resolve} from 'forward-slash-path'
+import {basename, join, resolve} from 'forward-slash-path'
 import fs from 'fs-extra'
-import {glob} from 'tinyglobby'
+import {globby} from 'globby'
 
 import {readManifest} from '../readManifest.ts'
 
@@ -34,22 +34,33 @@ export class WorkspaceTraverser {
   }
 
   async #getChildFolders(folder: string, patterns: Array<string>): Promise<Array<string>> {
-    // Match manifests directly so directory symlinks are included.
-    const manifestPatterns = patterns.flatMap(pattern => {
-      const manifestPattern = `${pattern.replace(/\/+$/, '')}/package.json`
-      // Preserve directory exclusions to prune their descendants too.
-      return pattern.startsWith('!') && !pattern.startsWith('!(') ? [pattern, manifestPattern] : [manifestPattern]
-    })
-    const matches = await glob(manifestPatterns, {
+    const positivePatterns: Array<string> = []
+    const ignore = ['**/node_modules', '**/node_modules/**', '**/.git', '**/.git/**']
+    for (const pattern of patterns) {
+      const isExclusion = pattern.startsWith('!') && !pattern.startsWith('!(')
+      const workspacePattern = (isExclusion ? pattern.slice(1) : pattern).replace(/\/+$/, '')
+      if (isExclusion) {
+        // Globby applies negative patterns sequentially. Using ignore keeps workspace exclusions order-independent.
+        ignore.push(workspacePattern, `${workspacePattern}/**`)
+      } else {
+        positivePatterns.push(pattern)
+      }
+    }
+    const matches = await globby(positivePatterns, {
       cwd: folder,
       absolute: true,
       dot: true,
       expandDirectories: false,
-      onlyFiles: true,
-      followSymbolicLinks: true,
-      ignore: ['**/node_modules/**', '**/.git/**'],
+      followSymbolicLinks: false,
+      ignore,
+      onlyDirectories: false,
+      onlyFiles: false,
     })
-    return [...new Set(matches.map(match => dirname(resolve(match))))].toSorted((left, right) => left.localeCompare(right, 'en'))
+    const packageFolders = await Promise.all(matches.map(async match => {
+      const candidate = resolve(match)
+      return await fs.pathExists(join(candidate, 'package.json')) ? candidate : undefined
+    }))
+    return [...new Set(packageFolders.filter(packageFolder => packageFolder !== undefined))].toSorted((left, right) => left.localeCompare(right, 'en'))
   }
 
   async *#visitPackages(folders: Array<string>, parentHierarchy: Array<string>, backwards: boolean, optional: boolean): AsyncGenerator<Package, void, unknown> {
