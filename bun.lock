@@ -5,10 +5,10 @@
     "": {
       "name": "traverse-workspace",
       "devDependencies": {
-        "@types/bun": "^1.4.2",
-        "eslint": "^10.10.0",
-        "eslint-config-jaid": "^27.0.1",
-        "tsconfig-jaid-bun": "^16.0.0",
+        "@types/bun": "1.4.2",
+        "eslint": "10.10.0",
+        "eslint-config-jaid": "27.0.1",
+        "tsconfig-jaid-bun": "16.0.0",
         "typescript": "npm:typescript-classic@6.0.4",
       },
     },
