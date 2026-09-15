@@ -13,7 +13,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git@github.com:Jaid/traverse-workspace.git"
+    "url": "git+https://github.com/Jaid/traverse-workspace.git"
   },
   "scripts": {
     "test": "bun test --max-concurrency 1"
