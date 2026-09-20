@@ -36,7 +36,7 @@ The result has this shape, with additional manifest metadata preserved when pres
 ]
 ```
 
-All three APIs accept either a package folder or its `package.json` file. Relative paths are resolved against the current working directory. Traversal starts at the supplied package and does not search upward for a workspace root.
+All APIs accept either a package folder or its `package.json` file. Relative paths are resolved against the current working directory. Traversal starts at the supplied package and does not search upward for a workspace root.
 
 ## Tree API
 
@@ -71,6 +71,17 @@ type Output = Packages
 
 Only the listed manifest fields are copied, and only when present. Their values are preserved without resolving dependency versions or modifying workspace declarations. Leaf packages omit `packages` rather than returning an empty array.
 
+## Flat paths
+
+`traverseWorkspace.flat(input)` returns `Promise<Array<string>>` containing the absolute package folders in the same parent-first depth-first order as `async`.
+
+`traverseWorkspace.flatInward(input)` returns the same folders in the same child-first postorder as `asyncInward`.
+
+```typescript
+const folders = await traverseWorkspace.flat('./package.json')
+const inwardFolders = await traverseWorkspace.flatInward('./package.json')
+```
+
 ## Async iterators
 
 ```typescript
@@ -78,7 +89,7 @@ for await (const entry of traverseWorkspace.async('./package.json')) {
   console.log(entry.hierarchy, entry.folder)
 }
 
-for await (const entry of traverseWorkspace.asyncBackwards('./package.json')) {
+for await (const entry of traverseWorkspace.asyncInward('./package.json')) {
   console.log(entry.hierarchy, entry.folder)
 }
 ```
@@ -88,13 +99,13 @@ Both methods return `AsyncGenerator<Package, void, unknown>` directly. Do not aw
 | Method | Traversal order |
 | --- | --- |
 | `traverseWorkspace.async(input)` | Depth-first preorder: each parent before its descendants. |
-| `traverseWorkspace.asyncBackwards(input)` | Depth-first postorder: all descendants of a package before that package. |
+| `traverseWorkspace.asyncInward(input)` | Depth-first postorder: all descendants of a package before that package. |
 
-For a root containing `a` and `b`, where `a` contains `leaf`, `async` yields `root → a → leaf → b`; `asyncBackwards` yields `leaf → a → b → root`. Both preserve the same folder-sorted sibling order. Backwards traversal is child-first, not a global depth sort or a reversal of the entire forward sequence.
+For a root containing `a` and `b`, where `a` contains `leaf`, `async` yields `root → a → leaf → b`; `asyncInward` yields `leaf → a → b → root`. Both preserve the same folder-sorted sibling order. Inward traversal is child-first, not a global depth sort or a reversal of the entire forward sequence.
 
-The iterators perform no filesystem access until iteration starts. They read package manifests on demand and do not construct or retain the complete tree. Workspace matches are discovered and sorted per parent. Forward traversal yields the parent before discovering its children; backwards traversal walks the current branch before yielding its parent, without eagerly reading unrelated sibling manifests. Breaking the loop stops traversal and releases the active branch state. Yielded entries are never populated or mutated later by the library.
+The iterators perform no filesystem access until iteration starts. They read package manifests on demand and do not construct or retain the complete tree. Workspace matches are discovered and sorted per parent. Forward traversal yields the parent before discovering its children; inward traversal walks the current branch before yielding its parent, without eagerly reading unrelated sibling manifests. Breaking the loop stops traversal and releases the active branch state. Yielded entries are never populated or mutated later by the library.
 
-Backwards traversal supports removing each yielded package folder because its declared descendants have already been visited. Discovered children that disappear during processing are skipped. Ordering follows workspace declarations, not dependency relationships or undeclared physical folder nesting. Workspace patterns can reference folders outside the starting package, and a shared package can occur under multiple branches, so check the folders and declarations before performing destructive operations.
+Inward traversal supports removing each yielded package folder because its declared descendants have already been visited. Discovered children that disappear during processing are skipped. Ordering follows workspace declarations, not dependency relationships or undeclared physical folder nesting. Workspace patterns can reference folders outside the starting package, and a shared package can occur under multiple branches, so check the folders and declarations before performing destructive operations.
 
 ## Workspace discovery
 

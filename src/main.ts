@@ -16,9 +16,13 @@ traverseWorkspace.async = async function *(input: string): AsyncGenerator<Packag
   yield* (new WorkspaceTraverser).iterate(folder)
 }
 /** Lazily yield flat package entries in depth-first postorder, with descendants before their parents. */
-traverseWorkspace.asyncBackwards = async function *(input: string): AsyncGenerator<Package, void, unknown> {
+traverseWorkspace.asyncInward = async function *(input: string): AsyncGenerator<Package, void, unknown> {
   const folder = await resolveInputFolder(input)
   yield* (new WorkspaceTraverser).iterate(folder, true)
 }
+/** Return absolute package folders in depth-first order, with parents before their descendants. */
+traverseWorkspace.flat = async (input: string): Promise<Array<string>> => Array.fromAsync(traverseWorkspace.async(input), entry => entry.folder)
+/** Return absolute package folders in depth-first postorder, with descendants before their parents. */
+traverseWorkspace.flatInward = async (input: string): Promise<Array<string>> => Array.fromAsync(traverseWorkspace.asyncInward(input), entry => entry.folder)
 
 export default traverseWorkspace

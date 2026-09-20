@@ -11,8 +11,8 @@ const manifestFields = ['name', 'workspaces', 'private', 'version', 'peerDepende
 export class WorkspaceTraverser {
   readonly #activeFolders = new Set<string>
 
-  async *iterate(folder: string, backwards = false): AsyncGenerator<Package, void, unknown> {
-    yield* this.#visitPackages([folder], [], backwards, false)
+  async *iterate(folder: string, inward = false): AsyncGenerator<Package, void, unknown> {
+    yield* this.#visitPackages([folder], [], inward, false)
   }
 
   async traverse(folder: string): Promise<Packages> {
@@ -63,7 +63,7 @@ export class WorkspaceTraverser {
     return [...new Set(packageFolders.filter(packageFolder => packageFolder !== undefined))].toSorted((left, right) => left.localeCompare(right, 'en'))
   }
 
-  async *#visitPackages(folders: Array<string>, parentHierarchy: Array<string>, backwards: boolean, optional: boolean): AsyncGenerator<Package, void, unknown> {
+  async *#visitPackages(folders: Array<string>, parentHierarchy: Array<string>, inward: boolean, optional: boolean): AsyncGenerator<Package, void, unknown> {
     const seenFolders = new Set<string>
     for (const folder of folders) {
       let realFolder: string
@@ -96,14 +96,14 @@ export class WorkspaceTraverser {
       }
       this.#activeFolders.add(realFolder)
       try {
-        if (!backwards) {
+        if (!inward) {
           yield entry
         }
         if (patterns.length) {
           const childFolders = await this.#getChildFolders(folder, patterns)
-          yield* this.#visitPackages(childFolders, hierarchy, backwards, true)
+          yield* this.#visitPackages(childFolders, hierarchy, inward, true)
         }
-        if (backwards) {
+        if (inward) {
           yield entry
         }
       } finally {

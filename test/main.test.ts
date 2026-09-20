@@ -23,9 +23,9 @@ const collect = async (iterable: AsyncIterable<Package>): Promise<Packages> => {
   const entries: Packages = await Array.fromAsync(iterable)
   return entries
 }
-const flatten = (packages: Packages, backwards = false): Packages => packages.flatMap(({packages: children, ...entry}) => {
-  const descendants = children ? flatten(children, backwards) : []
-  return backwards ? [...descendants, entry] : [entry, ...descendants]
+const flatten = (packages: Packages, inward = false): Packages => packages.flatMap(({packages: children, ...entry}) => {
+  const descendants = children ? flatten(children, inward) : []
+  return inward ? [...descendants, entry] : [entry, ...descendants]
 })
 const writeBranchingWorkspace = async () => {
   await writePackage('.', {
@@ -65,7 +65,9 @@ test('exports the requested recursive types and iterator signatures', () => {
   expectTypeOf<Output>().toEqualTypeOf<Packages>()
   expectTypeOf<ReturnType<typeof traverseWorkspace>>().toEqualTypeOf<Promise<Output>>()
   expectTypeOf<ReturnType<typeof traverseWorkspace.async>>().toEqualTypeOf<AsyncGenerator<Package, void, unknown>>()
-  expectTypeOf<ReturnType<typeof traverseWorkspace.asyncBackwards>>().toEqualTypeOf<AsyncGenerator<Package, void, unknown>>()
+  expectTypeOf<ReturnType<typeof traverseWorkspace.asyncInward>>().toEqualTypeOf<AsyncGenerator<Package, void, unknown>>()
+  expectTypeOf<ReturnType<typeof traverseWorkspace.flat>>().toEqualTypeOf<Promise<Array<string>>>()
+  expectTypeOf<ReturnType<typeof traverseWorkspace.flatInward>>().toEqualTypeOf<Promise<Array<string>>>()
 })
 test('returns a root array with exactly the requested manifest fields', async () => {
   const metadata = {
@@ -623,7 +625,7 @@ test('ignores junction or symlink cycles during recursive glob discovery', async
     },
   ])
   expect(await collect(traverseWorkspace.async(directory))).toEqual(flatten(tree))
-  expect(await collect(traverseWorkspace.asyncBackwards(directory))).toEqual(flatten(tree, true))
+  expect(await collect(traverseWorkspace.asyncInward(directory))).toEqual(flatten(tree, true))
   expect(() => JSON.stringify(tree)).not.toThrow()
 }, 5000)
 test('keeps traversal state independent across calls', async () => {
@@ -736,6 +738,34 @@ test.each([
   })
   await expect(traverseWorkspace(directory)).rejects.toThrow(TypeError)
 })
+test('flat returns absolute project folders in parent-first depth-first order', async () => {
+  await writeBranchingWorkspace()
+  expect(await traverseWorkspace.flat(directory)).toEqual([
+    directory,
+    join(directory, 'packages/a'),
+    join(directory, 'packages/a/children/one'),
+    join(directory, 'packages/a/children/one/nested/leaf'),
+    join(directory, 'packages/a/children/two'),
+    join(directory, 'packages/b'),
+  ])
+})
+test('flatInward returns absolute project folders in child-first depth-first order', async () => {
+  await writeBranchingWorkspace()
+  expect(await traverseWorkspace.flatInward(directory)).toEqual([
+    join(directory, 'packages/a/children/one/nested/leaf'),
+    join(directory, 'packages/a/children/one'),
+    join(directory, 'packages/a/children/two'),
+    join(directory, 'packages/a'),
+    join(directory, 'packages/b'),
+    directory,
+  ])
+})
+test.each(['flat', 'flatInward'] as const)('%s accepts package.json and relative input paths', async method => {
+  await writeBranchingWorkspace()
+  const expected = await traverseWorkspace[method](directory)
+  expect(await traverseWorkspace[method](join(directory, 'package.json'))).toEqual(expected)
+  expect(await traverseWorkspace[method](relative(process.cwd(), directory))).toEqual(expected)
+})
 test('async yields flat entries in parent-first depth-first order', async () => {
   await writeBranchingWorkspace()
   const entries = await collect(traverseWorkspace.async(directory))
@@ -744,14 +774,14 @@ test('async yields flat entries in parent-first depth-first order', async () => 
   expect(entries).toEqual(flatten(await traverseWorkspace(directory)))
   expect(entries.every(entry => !Object.hasOwn(entry, 'packages') && !Object.hasOwn(entry, 'path'))).toBe(true)
 })
-test('asyncBackwards yields descendants before parents without reversing sibling order', async () => {
+test('asyncInward yields descendants before parents without reversing sibling order', async () => {
   await writeBranchingWorkspace()
-  const entries = await collect(traverseWorkspace.asyncBackwards(directory))
+  const entries = await collect(traverseWorkspace.asyncInward(directory))
   expect(entries.map(entry => entry.name)).toEqual(['leaf', 'one', 'two', 'a', 'b', 'root'])
   expect(entries).toEqual(flatten(await traverseWorkspace(directory), true))
   expect(entries.every(entry => !Object.hasOwn(entry, 'packages') && !Object.hasOwn(entry, 'path'))).toBe(true)
 })
-test.each(['async', 'asyncBackwards'] as const)('%s accepts the same input forms as the tree API', async method => {
+test.each(['async', 'asyncInward'] as const)('%s accepts the same input forms as the tree API', async method => {
   await writeBranchingWorkspace()
   const expected = await collect(traverseWorkspace[method](directory))
   expect(await collect(traverseWorkspace[method](join(directory, 'package.json')))).toEqual(expected)
@@ -761,7 +791,7 @@ test.each(['async', 'asyncBackwards'] as const)('%s accepts the same input forms
     expect(await collect(traverseWorkspace[method](directory.replaceAll('/', '\\')))).toEqual(expected)
   }
 })
-test.each(['async', 'asyncBackwards'] as const)('%s performs no filesystem access before the first next call', async method => {
+test.each(['async', 'asyncInward'] as const)('%s performs no filesystem access before the first next call', async method => {
   const folder = join(directory, 'not-created-yet')
   const iterator = traverseWorkspace[method](folder)
   expect(iterator[Symbol.asyncIterator]()).toBe(iterator)
@@ -798,14 +828,14 @@ test('async yields the parent before reading children and stops immediately on b
     value: undefined,
   })
 })
-test('asyncBackwards yields the first branch without reading later siblings', async () => {
+test('asyncInward yields the first branch without reading later siblings', async () => {
   await writePackage('.', {
     name: 'root',
     workspaces: ['packages/*'],
   })
   await writePackage('packages/a', {name: 'a'})
   await fs.outputFile(join(directory, 'packages/b/package.json'), '{invalid')
-  const iterator = traverseWorkspace.asyncBackwards(directory)
+  const iterator = traverseWorkspace.asyncInward(directory)
   expect(await iterator.next()).toMatchObject({
     done: false,
     value: {name: 'a'},
@@ -818,7 +848,7 @@ test('asyncBackwards yields the first branch without reading later siblings', as
   expect(remaining.map(entry => entry.name)).toEqual(['b', 'root'])
   expect(remaining[0].version).toBe('2.0.0')
 })
-test('asyncBackwards stops before later siblings when its consumer breaks', async () => {
+test('asyncInward stops before later siblings when its consumer breaks', async () => {
   await writePackage('.', {
     name: 'root',
     workspaces: ['packages/*'],
@@ -826,13 +856,13 @@ test('asyncBackwards stops before later siblings when its consumer breaks', asyn
   await writePackage('packages/a', {name: 'a'})
   await fs.outputFile(join(directory, 'packages/b/package.json'), '{invalid')
   const visited: Array<string | undefined> = []
-  for await (const entry of traverseWorkspace.asyncBackwards(directory)) {
+  for await (const entry of traverseWorkspace.asyncInward(directory)) {
     visited.push(entry.name)
     break
   }
   expect(visited).toEqual(['a'])
 })
-test.each(['async', 'asyncBackwards'] as const)('%s never adds descendants or otherwise mutates yielded entries', async method => {
+test.each(['async', 'asyncInward'] as const)('%s never adds descendants or otherwise mutates yielded entries', async method => {
   await writeBranchingWorkspace()
   const visited: Packages = []
   for await (const entry of traverseWorkspace[method](directory)) {
@@ -840,7 +870,7 @@ test.each(['async', 'asyncBackwards'] as const)('%s never adds descendants or ot
     Object.freeze(entry)
     visited.push(entry)
   }
-  expect(visited).toEqual(flatten(await traverseWorkspace(directory), method === 'asyncBackwards'))
+  expect(visited).toEqual(flatten(await traverseWorkspace(directory), method === 'asyncInward'))
 })
 test.each([{workspaces: ['packages/*']}, {workspaces: {packages: ['packages/*']}}] as const)('keeps traversal state independent of yielded hierarchy and workspaces mutations: %j', async ({workspaces}) => {
   await writePackage('.', {
@@ -868,7 +898,7 @@ test.each([{workspaces: ['packages/*']}, {workspaces: {packages: ['packages/*']}
     },
   ])
 })
-test.each(['async', 'asyncBackwards'] as const)('%s preserves duplicate names, fallback hierarchy and independent branches', async method => {
+test.each(['async', 'asyncInward'] as const)('%s preserves duplicate names, fallback hierarchy and independent branches', async method => {
   await writePackage('.', {workspaces: ['packages/*']})
   await writePackage('packages/a', {
     name: 'duplicate',
@@ -880,7 +910,7 @@ test.each(['async', 'asyncBackwards'] as const)('%s preserves duplicate names, f
   })
   await writePackage('shared', {})
   const entries = await collect(traverseWorkspace[method](directory))
-  expect(entries).toEqual(flatten(await traverseWorkspace(directory), method === 'asyncBackwards'))
+  expect(entries).toEqual(flatten(await traverseWorkspace(directory), method === 'asyncInward'))
   expect(entries.filter(entry => entry.name === 'duplicate')).toHaveLength(2)
   const shared = entries.filter(entry => entry.folder === join(directory, 'shared'))
   expect(shared).toHaveLength(2)
@@ -891,20 +921,20 @@ test.each(['async', 'asyncBackwards'] as const)('%s preserves duplicate names, f
 test('keeps concurrently interleaved iterators independent', async () => {
   await writeBranchingWorkspace()
   const forward = traverseWorkspace.async(directory)
-  const backwards = traverseWorkspace.asyncBackwards(directory)
+  const inward = traverseWorkspace.asyncInward(directory)
   expect(await forward.next()).toMatchObject({
     done: false,
     value: {name: 'root'},
   })
-  expect(await backwards.next()).toMatchObject({
+  expect(await inward.next()).toMatchObject({
     done: false,
     value: {name: 'leaf'},
   })
-  const [forwardRest, backwardsRest] = await Promise.all([collect(forward), collect(backwards)])
+  const [forwardRest, inwardRest] = await Promise.all([collect(forward), collect(inward)])
   expect(forwardRest.map(entry => entry.name)).toEqual(['a', 'one', 'leaf', 'two', 'b'])
-  expect(backwardsRest.map(entry => entry.name)).toEqual(['one', 'two', 'a', 'b', 'root'])
+  expect(inwardRest.map(entry => entry.name)).toEqual(['one', 'two', 'a', 'b', 'root'])
 })
-test.each(['async', 'asyncBackwards'] as const)('%s rejects invalid inputs and malformed root manifests during iteration', async method => {
+test.each(['async', 'asyncInward'] as const)('%s rejects invalid inputs and malformed root manifests during iteration', async method => {
   await expect(traverseWorkspace[method]('').next()).rejects.toThrow(TypeError)
   await expect(traverseWorkspace[method](undefined as never).next()).rejects.toThrow(TypeError)
   await expect(traverseWorkspace[method](join(directory, 'missing')).next()).rejects.toThrow()
@@ -912,10 +942,10 @@ test.each(['async', 'asyncBackwards'] as const)('%s rejects invalid inputs and m
   await fs.writeFile(manifestPath, '{invalid')
   await expect(traverseWorkspace[method](directory).next()).rejects.toThrow(manifestPath)
 })
-test('asyncBackwards supports deleting every yielded package directory', async () => {
+test('asyncInward supports deleting every yielded package directory', async () => {
   await writeBranchingWorkspace()
   const visited: Array<string | undefined> = []
-  for await (const entry of traverseWorkspace.asyncBackwards(directory)) {
+  for await (const entry of traverseWorkspace.asyncInward(directory)) {
     visited.push(entry.name)
     expect(await fs.pathExists(join(entry.folder, 'package.json'))).toBe(true)
     await fs.remove(entry.folder)
@@ -923,7 +953,7 @@ test('asyncBackwards supports deleting every yielded package directory', async (
   expect(visited).toEqual(['leaf', 'one', 'two', 'a', 'b', 'root'])
   expect(await fs.pathExists(directory)).toBe(false)
 })
-test('asyncBackwards skips overlapping matches already removed by the consumer', async () => {
+test('asyncInward skips overlapping matches already removed by the consumer', async () => {
   await writePackage('.', {
     name: 'root',
     workspaces: ['packages/**'],
@@ -934,7 +964,7 @@ test('asyncBackwards skips overlapping matches already removed by the consumer',
   })
   await writePackage('packages/a/children/leaf', {name: 'leaf'})
   const visited: Array<string | undefined> = []
-  for await (const entry of traverseWorkspace.asyncBackwards(directory)) {
+  for await (const entry of traverseWorkspace.asyncInward(directory)) {
     visited.push(entry.name)
     await fs.remove(entry.folder)
   }
@@ -948,7 +978,7 @@ test('skips a discovered child whose manifest disappears before its turn', async
   })
   await writePackage('packages/a', {name: 'a'})
   const b = await writePackage('packages/b', {name: 'b'})
-  const iterator = traverseWorkspace.asyncBackwards(directory)
+  const iterator = traverseWorkspace.asyncInward(directory)
   expect(await iterator.next()).toMatchObject({
     done: false,
     value: {name: 'a'},
