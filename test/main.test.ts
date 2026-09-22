@@ -200,7 +200,8 @@ test('recursively resolves each package’s own workspace declarations and hiera
               ],
             },
           ],
-        }, {
+        },
+        {
           name: 'sibling',
           folder: sibling,
           hierarchy: ['root', 'sibling'],
