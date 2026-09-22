@@ -13,7 +13,7 @@
         "@types/bun": "1.4.2",
         "@types/fs-extra": "11.0.4",
         "eslint": "10.11.0",
-        "eslint-config-jaid": "33.1.1",
+        "eslint-config-jaid": "34.0.0",
         "tsconfig-jaid-bun": "16.0.0",
         "type-fest": "5.10.0",
         "typescript": "npm:typescript-classic@6.0.4",
@@ -309,7 +309,7 @@
 
     "eslint-compat-utils": ["eslint-compat-utils@0.5.1", "", { "dependencies": { "semver": "^7.5.4" }, "peerDependencies": { "eslint": ">=6.0.0" } }, "sha512-3z3vFexKIEnjHE3zCMRo6fn/e44U7T1khUjg+Hp0ZQMCigh28rALD0nPFBcGZuiLC5rLZa2ubQHDRln09JfU2Q=="],
 
-    "eslint-config-jaid": ["eslint-config-jaid@33.1.1", "", { "dependencies": { "@eslint-react/eslint-plugin": "^5.20.2", "@eslint/markdown": "^8.0.3", "@stylistic/eslint-plugin": "^6.0.0-beta.6", "@typescript-eslint/eslint-plugin": "^8.70.0", "@typescript-eslint/parser": "^8.70.0", "browserslist-config-jaid-node": "^3.0.0", "es-toolkit": "^1.52.0", "eslint": "^10.11.0", "eslint-import-resolver-typescript": "^4.4.5", "eslint-plugin-import-x": "^4.17.1", "eslint-plugin-jsonc": "^3.4.2", "eslint-plugin-n": "^18.3.0", "eslint-plugin-package-json": "^1.9.0", "eslint-plugin-perfectionist": "^5.11.1", "eslint-plugin-promise": "^7.3.0", "eslint-plugin-react-hooks": "^7.1.1", "eslint-plugin-regexp": "^3.3.1", "eslint-plugin-unicorn": "^76.0.0", "eslint-plugin-yml": "^3.8.1", "eslint-plugin-you-dont-need-lodash-underscore": "^6.14.0", "eslint-plugin-zod": "^4.14.2", "forward-slash-path": "^0.3.0", "jsonc-eslint-parser": "^3.3.0", "yaml-eslint-parser": "^2.1.0" } }, "sha512-VmfP9fU2myChyltwJMsAO3oa6Ti9AD1dWeBfDkHWLu+LBaqJt0kdL0TWdjt6LGVfGSlxUkuKMWQTA2tbz6W2Ng=="],
+    "eslint-config-jaid": ["eslint-config-jaid@34.0.0", "", { "dependencies": { "@eslint-react/eslint-plugin": "^5.20.5", "@eslint/markdown": "^8.0.3", "@stylistic/eslint-plugin": "^6.0.0-beta.6", "@typescript-eslint/eslint-plugin": "^8.70.1", "@typescript-eslint/parser": "^8.70.1", "browserslist-config-jaid-node": "^3.0.0", "es-toolkit": "^1.52.0", "eslint": "^10.11.0", "eslint-import-resolver-typescript": "^4.4.5", "eslint-plugin-import-x": "^4.17.1", "eslint-plugin-jsonc": "^3.4.2", "eslint-plugin-n": "^18.3.0", "eslint-plugin-package-json": "^1.9.0", "eslint-plugin-perfectionist": "^5.11.1", "eslint-plugin-promise": "^7.3.0", "eslint-plugin-react-hooks": "^7.1.1", "eslint-plugin-regexp": "^3.3.1", "eslint-plugin-unicorn": "^76.0.0", "eslint-plugin-yml": "^3.8.1", "eslint-plugin-you-dont-need-lodash-underscore": "^6.14.0", "eslint-plugin-zod": "^4.14.2", "forward-slash-path": "^0.3.0", "jsonc-eslint-parser": "^3.3.0", "yaml-eslint-parser": "^2.1.0" } }, "sha512-giBalaC+xcG7RazxqlBVwZUF3jPjy+BEuKZ0VJn/cnMSZsbwjMFQnOh8aqtNGvvY6kZqLajI8XxE1auW3SVaqQ=="],
 
     "eslint-fix-utils": ["eslint-fix-utils@0.4.4", "", { "peerDependencies": { "@types/estree": ">=1", "eslint": ">=8" }, "optionalPeers": ["@types/estree"] }, "sha512-9reP0fw++eZv0qs0ji8U1G9a+j8yWQW1RT8Wrlw32JlhQJDiweVX98kyDrJq6G7jdOLgKwmj0nPghyMadsOgHQ=="],
 

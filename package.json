@@ -26,7 +26,7 @@
   },
   "devDependencies": {
     "eslint": "10.11.0",
-    "eslint-config-jaid": "33.1.1",
+    "eslint-config-jaid": "34.0.0",
     "tsconfig-jaid-bun": "16.0.0",
     "type-fest": "5.10.0",
     "typescript": "npm:typescript-classic@6.0.4",
